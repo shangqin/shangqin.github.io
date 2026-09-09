@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>由浅入深理解菲涅尔效应 - iShang</title>
+  <style>
+    :root {
+      --bg: #f7f9fc;
+      --ink: #172033;
+      --muted: #637083;
+      --line: #dbe3ee;
+      --panel: #ffffff;
+      --accent: #2563eb;
+      --cyan: #0891b2;
+      --green: #0f766e;
+      --shadow: 0 18px 45px rgba(23, 32, 51, .10);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.72;
+    }
+    a { color: inherit; }
+    .page { max-width: 1120px; margin: 0 auto; padding: 28px 20px 72px; }
+    .back { display: inline-block; margin-bottom: 24px; color: var(--muted); text-decoration: none; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, .95fr);
+      gap: 34px;
+      align-items: center;
+      padding: 44px 0 28px;
+    }
+    .eyebrow { color: var(--accent); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 13px; }
+    h1 { font-size: clamp(34px, 5vw, 60px); line-height: 1.08; margin: 10px 0 18px; letter-spacing: 0; }
+    h2 { font-size: 30px; line-height: 1.22; margin: 52px 0 16px; }
+    h3 { font-size: 20px; margin: 0 0 8px; }
+    p { margin: 0 0 14px; }
+    .lead { font-size: 19px; color: #344054; max-width: 700px; }
+    .pill-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+    .pill { border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; background: #fff; color: #465468; font-size: 14px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+    .demo { padding: 24px; }
+    .scene {
+      position: relative;
+      height: 360px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      overflow: hidden;
+      background: linear-gradient(#dff4ff 0 47%, #5db7d7 48%, #236d8e 100%);
+    }
+    .sky { position: absolute; inset: 0 0 52%; background: linear-gradient(#eaf8ff, #bde8ff); }
+    .sun { position: absolute; width: 54px; height: 54px; border-radius: 50%; background: #fff7ad; top: 34px; right: 52px; box-shadow: 0 0 34px rgba(255, 247, 173, .9); }
+    .water {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 52%;
+      background:
+        linear-gradient(rgba(255,255,255,var(--reflect, .18)), rgba(255,255,255,0) 38%),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.22) 0 2px, transparent 2px 18px),
+        linear-gradient(#66c4dd, #17607d);
+      transform-origin: center top;
+      transform: perspective(620px) rotateX(var(--tilt, 58deg));
+      transition: transform .2s, background .2s;
+    }
+    .reflection {
+      position: absolute; left: var(--glint-left, 55%); top: 52%; width: var(--glint-width, 74px); height: 150px;
+      background: radial-gradient(ellipse at center, rgba(255,255,255,var(--glint, .35)) 0 12%, rgba(255,255,255,.22) 22%, transparent 66%);
+      filter: blur(var(--blur, 8px));
+      transform: translateX(-50%) skewX(-12deg);
+      transition: all .2s;
+    }
+    .viewer {
+      position: absolute; left: 34px; bottom: 30px; width: 58px; height: 86px;
+      border-radius: 28px 28px 14px 14px;
+      background: #172033;
+      box-shadow: 0 12px 22px rgba(0,0,0,.25);
+    }
+    .viewer::before { content: ""; position: absolute; width: 36px; height: 36px; border-radius: 50%; background: #334155; left: 11px; top: -24px; }
+    .ray { position: absolute; height: 3px; width: var(--ray-width, 240px); left: 82px; bottom: var(--ray-bottom, 136px); background: rgba(255,255,255,.8); transform-origin: left center; transform: rotate(var(--ray-angle, -14deg)); border-radius: 999px; transition: all .2s; }
+    .controls { display: grid; gap: 14px; padding-top: 20px; }
+    .control { display: grid; grid-template-columns: 90px 1fr 54px; gap: 12px; align-items: center; color: #344054; font-size: 14px; }
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+    .readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+    .metric { background: #f8fafc; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+    .metric strong { display: block; font-size: 21px; }
+    .metric span { color: var(--muted); font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .card { padding: 22px; }
+    .card p { color: var(--muted); }
+    .note { border-left: 4px solid var(--cyan); background: #ecfeff; padding: 16px 18px; border-radius: 6px; color: #155e75; }
+    .formula { background: #111827; color: #f8fafc; border-radius: 8px; padding: 18px; text-align: center; font-size: 20px; margin: 18px 0; overflow-x: auto; }
+    .table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: table; margin-top: 12px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 13px 14px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+    tr:last-child td { border-bottom: 0; }
+    .mini-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
+    .mini { height: 160px; border: 1px solid var(--line); border-radius: 8px; background: #eef6fb; display: grid; place-items: center; padding: 14px; text-align: center; color: var(--muted); }
+    .ball { width: 86px; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 32% 25%, rgba(255,255,255,.9) 0 7%, transparent 18%), radial-gradient(circle at center, #4aa3df 0, #2563eb 62%, #0f172a 100%); box-shadow: inset -20px -22px 34px rgba(0,0,0,.25), 0 18px 24px rgba(30,41,59,.18); position: relative; }
+    .ball::after { content: ""; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset var(--rim-x, -18px) 0 18px rgba(255,255,255,var(--rim, .15)); }
+    .footer { margin-top: 58px; color: var(--muted); font-size: 14px; }
+    @media (max-width: 840px) {
+      .hero, .grid, .mini-row { grid-template-columns: 1fr; }
+      h1 { font-size: 38px; }
+      .readout { grid-template-columns: 1fr; }
+      .control { grid-template-columns: 76px 1fr 46px; }
+      .scene { height: 320px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <a class="back" href="./">返回图形目录</a>
+
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Graphics / Rendering</p>
+        <h1>由浅入深理解菲涅尔效应</h1>
+        <p class="lead">菲涅尔效应说的是：同一个表面，正着看和斜着看，反射强度不一样。越贴着表面看，反射通常越强。这就是水面、玻璃、塑料、金属边缘会突然亮起来的原因之一。</p>
+        <div class="pill-row">
+          <span class="pill">从水面直觉开始</span>
+          <span class="pill">观察角交互演示</span>
+          <span class="pill">连接 PBR 边缘反光</span>
+        </div>
+      </div>
+
+      <div class="panel demo">
+        <div class="scene" id="scene">
+          <div class="sky"></div>
+          <div class="sun"></div>
+          <div class="reflection"></div>
+          <div class="water"></div>
+          <div class="ray"></div>
+          <div class="viewer"></div>
+        </div>
+        <div class="controls">
+          <label class="control">观察角 <input id="angle" type="range" min="0" max="100" value="30"><span id="angleVal">30%</span></label>
+        </div>
+        <div class="readout">
+          <div class="metric"><strong id="frontVal">正面较多</strong><span>看到水下 / 材质本色</span></div>
+          <div class="metric"><strong id="reflectVal">反射较弱</strong><span>看到天空倒影</span></div>
+          <div class="metric"><strong id="summaryVal">普通视角</strong><span>当前视觉感受</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>1. 先从一个生活现象开始</h2>
+      <p>你站在水边往下看，常常能看到水里的石头、鱼、河底。但当你把视线压低，几乎贴着水面向远处看时，水面会更像一面镜子，天空和岸边的倒影变得特别明显。</p>
+      <div class="note">这不是水面突然变成镜子，而是“观察角”改变后，水面对光的反射比例变大了。这个随角度变化的反射现象，就是菲涅尔效应。</div>
+    </section>
+
+    <section>
+      <h2>2. 什么是菲涅尔效应？</h2>
+      <p>用最简单的话说：</p>
+      <div class="formula">越垂直看表面，越容易看到表面下面或材质本色；越斜着看表面，越容易看到反射。</div>
+      <p>这里的“斜着看”在图形学里常叫掠射角。比如你看一个球，球中心比较像正面视角，球的边缘就接近掠射角。所以很多材质的边缘会更亮、更反光。</p>
+    </section>
+
+    <section>
+      <h2>3. 为什么边缘会发亮？</h2>
+      <p>把球表面想成很多小平面。球中心的小平面大多正对你，球边缘的小平面则是斜着对你。根据菲涅尔效应，斜着看的地方反射更强，于是边缘就会出现一圈更明显的反光。</p>
+      <div class="mini-row">
+        <div class="mini"><div><div class="ball" style="--rim:.08; --rim-x:-12px"></div><p>正面区域：反射较弱</p></div></div>
+        <div class="mini"><div><div class="ball" style="--rim:.28; --rim-x:-18px"></div><p>过渡区域：反射增强</p></div></div>
+        <div class="mini"><div><div class="ball" style="--rim:.58; --rim-x:-22px"></div><p>边缘区域：反射最明显</p></div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>4. 它和材质有什么关系？</h2>
+      <p>菲涅尔效应几乎存在于所有材质里，只是强弱不同。水、玻璃、塑料、皮肤、木头、金属都会有，只是表现方式不一样。</p>
+      <table class="table">
+        <thead><tr><th>材质</th><th>正面看</th><th>斜着看 / 边缘看</th></tr></thead>
+        <tbody>
+          <tr><td>水</td><td>更容易看到水下内容</td><td>更像镜子，天空倒影增强</td></tr>
+          <tr><td>玻璃</td><td>透明感更明显</td><td>反光更强，边缘更亮</td></tr>
+          <tr><td>塑料 / 木头</td><td>主要看到材质颜色</td><td>边缘会有一层淡淡反光</td></tr>
+          <tr><td>金属</td><td>本来就很会反射</td><td>反射仍会随角度变化，但整体都更亮、更有环境倒影</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>5. PBR 里怎么计算它？</h2>
+      <p>真实的菲涅尔公式来自物理光学，会考虑折射率、偏振等因素。实时渲染里常用一个近似公式，叫 Schlick 近似：</p>
+      <div class="formula">F = F0 + (1 - F0) × (1 - cosθ)<sup>5</sup></div>
+      <p>不用被公式吓到，先看三个部分：</p>
+      <div class="grid">
+        <div class="panel card"><h3>F</h3><p>最终反射比例。它越大，表面越反光。</p></div>
+        <div class="panel card"><h3>F0</h3><p>正面看时的基础反射率。非金属通常比较低，金属通常更高且带颜色。</p></div>
+        <div class="panel card"><h3>cosθ</h3><p>视线和表面法线的夹角关系。越正对，cosθ 越大；越斜看，cosθ 越小。</p></div>
+        <div class="panel card"><h3>五次方</h3><p>让变化不是线性的：大部分角度变化不夸张，但接近边缘时反射会快速增强。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>6. 和 PBR 参数如何配合？</h2>
+      <p>菲涅尔不是单独工作的。它会和粗糙度、金属度、环境反射一起决定最终观感。</p>
+      <table class="table">
+        <thead><tr><th>参数</th><th>对菲涅尔观感的影响</th></tr></thead>
+        <tbody>
+          <tr><td>粗糙度 Roughness</td><td>粗糙度低时，边缘反射更锐利；粗糙度高时，反射会被打散，看起来更柔。</td></tr>
+          <tr><td>金属度 Metallic</td><td>金属的 F0 更高，反射往往带有金属颜色；非金属正面反射通常较弱。</td></tr>
+          <tr><td>环境贴图 Environment</td><td>菲涅尔增强的是“反射”，所以环境里有什么，边缘就可能反射什么。</td></tr>
+          <tr><td>法线 Normal</td><td>法线改变局部表面朝向，也会改变每个像素的菲涅尔强弱。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>7. 开发中怎么判断用对了？</h2>
+      <div class="grid">
+        <div class="panel card"><h3>看水和玻璃</h3><p>正面透明、斜看反光，是最典型的检查方式。</p></div>
+        <div class="panel card"><h3>看球体边缘</h3><p>边缘应该有自然的反射增强，但不能像描边一样死白。</p></div>
+        <div class="panel card"><h3>换环境光</h3><p>材质边缘应该能反映环境变化，而不是固定一圈亮色。</p></div>
+        <div class="panel card"><h3>别手动画假边光</h3><p>如果只是加一圈固定 rim light，可能在某个角度好看，但换视角就不真实。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>8. 一句话总结</h2>
+      <p>菲涅尔效应就是“反射会随观察角变化”：正面看反射弱一些，斜着看反射强很多。它解释了水面为什么低角度像镜子，也解释了 PBR 材质为什么边缘常常更亮、更有真实感。</p>
+    </section>
+
+    <p class="footer">生成时间：2026-09-09。主题：菲涅尔效应入门与 PBR 中的应用。</p>
+  </main>
+
+  <script>
+    const scene = document.getElementById('scene');
+    const angle = document.getElementById('angle');
+    const angleVal = document.getElementById('angleVal');
+    const frontVal = document.getElementById('frontVal');
+    const reflectVal = document.getElementById('reflectVal');
+    const summaryVal = document.getElementById('summaryVal');
+
+    function update() {
+      const t = Number(angle.value) / 100;
+      const fresnel = Math.pow(t, 2.2);
+      angleVal.textContent = angle.value + '%';
+      scene.style.setProperty('--reflect', String(.12 + fresnel * .72));
+      scene.style.setProperty('--glint', String(.22 + fresnel * .72));
+      scene.style.setProperty('--blur', (10 - fresnel * 5) + 'px');
+      scene.style.setProperty('--glint-width', (70 + fresnel * 150) + 'px');
+      scene.style.setProperty('--glint-left', (52 + t * 12) + '%');
+      scene.style.setProperty('--tilt', (64 - t * 36) + 'deg');
+      scene.style.setProperty('--ray-angle', (-28 + t * 24) + 'deg');
+      scene.style.setProperty('--ray-bottom', (118 + t * 74) + 'px');
+      scene.style.setProperty('--ray-width', (210 + t * 90) + 'px');
+
+      if (t < .34) {
+        frontVal.textContent = '本色较多';
+        reflectVal.textContent = '反射较弱';
+        summaryVal.textContent = '接近正看';
+      } else if (t < .72) {
+        frontVal.textContent = '本色减少';
+        reflectVal.textContent = '反射增强';
+        summaryVal.textContent = '过渡视角';
+      } else {
+        frontVal.textContent = '本色很少';
+        reflectVal.textContent = '反射很强';
+        summaryVal.textContent = '掠射视角';
+      }
+    }
+
+    angle.addEventListener('input', update);
+    update();
+  </script>
+</body>
+</html>
