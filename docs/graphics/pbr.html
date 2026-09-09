@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>由浅入深理解 PBR - iShang</title>
+  <style>
+    :root {
+      --bg: #f7f9fc;
+      --ink: #172033;
+      --muted: #637083;
+      --line: #dbe3ee;
+      --panel: #ffffff;
+      --accent: #2563eb;
+      --accent-2: #14b8a6;
+      --warm: #f59e0b;
+      --shadow: 0 18px 45px rgba(23, 32, 51, .10);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.72;
+    }
+    a { color: inherit; }
+    .page { max-width: 1100px; margin: 0 auto; padding: 28px 20px 70px; }
+    .back { display: inline-block; margin-bottom: 24px; color: var(--muted); text-decoration: none; }
+    .hero {
+      padding: 46px 0 30px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(300px, .92fr);
+      gap: 34px;
+      align-items: center;
+    }
+    .eyebrow { color: var(--accent); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 13px; }
+    h1 { font-size: clamp(34px, 5vw, 62px); line-height: 1.08; margin: 10px 0 18px; letter-spacing: 0; }
+    h2 { font-size: 30px; margin: 54px 0 16px; line-height: 1.22; }
+    h3 { font-size: 20px; margin: 0 0 8px; }
+    p { margin: 0 0 14px; }
+    .lead { font-size: 19px; color: #344054; max-width: 680px; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+    .pill { border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; background: #fff; color: #465468; font-size: 14px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    .stage { padding: 24px; }
+    .sphere-wrap { min-height: 360px; display: grid; place-items: center; background: linear-gradient(145deg, #eaf0f8, #ffffff); border-radius: 8px; position: relative; overflow: hidden; }
+    .sphere {
+      width: min(72vw, 290px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at var(--hx, 32%) var(--hy, 24%), rgba(255,255,255,var(--shine, .9)) 0 5%, rgba(255,255,255,.38) 8%, rgba(255,255,255,0) 18%),
+        radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--base, #b86b32) 75%, white) 0 0, var(--base, #b86b32) 32%, color-mix(in srgb, var(--base, #b86b32) 62%, black) 78%, #111827 100%);
+      box-shadow: inset -38px -48px 70px rgba(0,0,0,var(--inner, .28)), inset 22px 16px 38px rgba(255,255,255,.24), 0 32px 54px rgba(31,41,55,.24);
+      transition: background .2s, box-shadow .2s, filter .2s;
+      filter: saturate(var(--sat, 1));
+    }
+    .ground { position: absolute; bottom: 48px; width: 330px; height: 38px; border-radius: 50%; background: rgba(30,41,59,.16); filter: blur(8px); }
+    .controls { padding: 20px 0 0; display: grid; gap: 14px; }
+    .control { display: grid; grid-template-columns: 92px 1fr 50px; gap: 12px; align-items: center; color: #344054; font-size: 14px; }
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+    input[type="color"] { width: 100%; height: 36px; border: 1px solid var(--line); border-radius: 8px; padding: 2px; background: #fff; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .card { padding: 22px; }
+    .card p { color: var(--muted); }
+    .tag { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); font-weight: 700; margin-bottom: 10px; }
+    .diagram { padding: 24px; margin: 22px 0; }
+    .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .pipe-step { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: #fbfdff; position: relative; }
+    .pipe-step strong { display: block; font-size: 16px; margin-bottom: 6px; }
+    .pipe-step span { color: var(--muted); font-size: 14px; }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+    .mini-scene { height: 180px; border-radius: 8px; border: 1px solid var(--line); background: #eef3f9; display: grid; place-items: center; overflow: hidden; }
+    .old, .pbr { width: 112px; aspect-ratio: 1; border-radius: 50%; }
+    .old { background: radial-gradient(circle at 30% 25%, #fff 0 5%, #c0c0c0 8%, #6b7280 54%, #232a36 100%); box-shadow: 0 24px 28px rgba(0,0,0,.22); }
+    .pbr { background: radial-gradient(circle at 25% 20%, rgba(255,255,255,.95) 0 4%, rgba(255,255,255,.2) 11%, transparent 20%), radial-gradient(circle at 36% 30%, #f4d59a 0, #c0842c 30%, #7c4a11 72%, #1f1308 100%); box-shadow: inset -28px -34px 42px rgba(0,0,0,.32), 0 24px 28px rgba(0,0,0,.22); }
+    .note { border-left: 4px solid var(--accent-2); background: #ecfeff; padding: 16px 18px; border-radius: 6px; color: #134e4a; }
+    .table { width: 100%; border-collapse: collapse; margin-top: 12px; background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: table; }
+    th, td { border-bottom: 1px solid var(--line); padding: 13px 14px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+    tr:last-child td { border-bottom: 0; }
+    code { background: #edf2f7; padding: 2px 6px; border-radius: 5px; }
+    .formula { font-size: 20px; padding: 18px; text-align: center; background: #111827; color: #f8fafc; border-radius: 8px; margin: 18px 0; }
+    .footer { margin-top: 58px; color: var(--muted); font-size: 14px; }
+    @media (max-width: 820px) {
+      .hero, .grid, .compare, .pipeline { grid-template-columns: 1fr; }
+      h1 { font-size: 38px; }
+      .control { grid-template-columns: 78px 1fr 42px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <a class="back" href="./">返回图形目录</a>
+
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Graphics / Rendering</p>
+        <h1>由浅入深理解 PBR</h1>
+        <p class="lead">PBR，全称 Physically Based Rendering，中文常叫“基于物理的渲染”。它不是某一个神秘算法，而是一套让材质在不同光照下更稳定、更像真实世界的渲染思想。</p>
+        <div class="pill-row">
+          <span class="pill">从直觉开始</span>
+          <span class="pill">材质参数可视化</span>
+          <span class="pill">金属度 / 粗糙度 / 菲涅耳</span>
+        </div>
+      </div>
+      <div class="panel stage">
+        <div class="sphere-wrap">
+          <div class="ground"></div>
+          <div class="sphere" id="sphere"></div>
+        </div>
+        <div class="controls">
+          <label class="control">基础色 <input id="baseColor" type="color" value="#b86b32"><span></span></label>
+          <label class="control">金属度 <input id="metallic" type="range" min="0" max="100" value="35"><span id="metallicVal">35%</span></label>
+          <label class="control">粗糙度 <input id="roughness" type="range" min="0" max="100" value="38"><span id="roughnessVal">38%</span></label>
+          <label class="control">观察角 <input id="viewAngle" type="range" min="0" max="100" value="35"><span id="angleVal">35%</span></label>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>1. 先用一句话理解 PBR</h2>
+      <p>传统做法常常是“调到看起来差不多”：这里加一点高光，那里压一点颜色。PBR 的目标是：材质参数尽量对应真实物理属性，让同一块木头、金属、塑料，在室内、室外、强光、弱光下都比较合理。</p>
+      <div class="note">最重要的直觉：PBR 不是让画面一定更漂亮，而是让材质更“守规矩”。光怎么来，能量怎么反射，哪些被吸收，哪些形成高光，都尽量遵守现实规律。</div>
+
+      <div class="compare">
+        <div class="panel card">
+          <h3>传统经验式材质</h3>
+          <div class="mini-scene"><div class="old"></div></div>
+          <p>高光、亮度、颜色往往靠人工感觉调。换一个光照环境后，可能突然太假、太亮或太暗。</p>
+        </div>
+        <div class="panel card">
+          <h3>PBR 材质</h3>
+          <div class="mini-scene"><div class="pbr"></div></div>
+          <p>用基础色、金属度、粗糙度等参数描述材质。换环境时，结果更可预测。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. 真实感来自哪里？</h2>
+      <p>你看到一个物体，本质上是在看“光和材质交互之后返回到眼睛的结果”。PBR 把这个过程拆成几件事：</p>
+      <div class="panel diagram">
+        <div class="pipeline">
+          <div class="pipe-step"><strong>光照</strong><span>太阳、灯、环境贴图给物体输入能量。</span></div>
+          <div class="pipe-step"><strong>表面</strong><span>表面有颜色、粗糙程度、是否是金属。</span></div>
+          <div class="pipe-step"><strong>反射</strong><span>一部分形成漫反射，一部分形成镜面高光。</span></div>
+          <div class="pipe-step"><strong>相机</strong><span>视角不同，看到的亮度和边缘反光也不同。</span></div>
+        </div>
+      </div>
+      <p>这就是为什么同一个杯子，正面看和斜着看不一样；为什么磨砂塑料没有锐利高光；为什么金属的反射会带有自己的颜色。</p>
+    </section>
+
+    <section>
+      <h2>3. PBR 常见的四个核心参数</h2>
+      <div class="grid">
+        <div class="panel card"><span class="tag">Base Color</span><h3>基础色</h3><p>材质本身的颜色。非金属时，它更像“漫反射颜色”；金属时，它会明显影响反射高光的颜色。</p></div>
+        <div class="panel card"><span class="tag">Metallic</span><h3>金属度</h3><p>0 表示木头、塑料、皮肤等非金属；1 表示铜、铁、金等金属。现实中多数材质不是 0 就是 1，中间值常用于过渡或脏污混合。</p></div>
+        <div class="panel card"><span class="tag">Roughness</span><h3>粗糙度</h3><p>粗糙度越低，高光越小越锐利，像镜子；粗糙度越高，高光越大越散，像磨砂表面。</p></div>
+        <div class="panel card"><span class="tag">Normal</span><h3>法线</h3><p>法线贴图不真的改变模型轮廓，但会改变表面每个点“朝向哪里”，让凹凸纹理影响光照。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>4. 漫反射和镜面反射</h2>
+      <p>一个非金属物体，比如木头，光打上去后会有两种主要结果：</p>
+      <table class="table">
+        <thead><tr><th>类型</th><th>可以怎么想</th><th>画面表现</th></tr></thead>
+        <tbody>
+          <tr><td>漫反射 Diffuse</td><td>光进入表面浅层，被散射后带着材质颜色出来。</td><td>决定大面积颜色，比如木头是棕色、塑料是蓝色。</td></tr>
+          <tr><td>镜面反射 Specular</td><td>光在表面直接弹回来。</td><td>决定高光、反光、边缘亮度。</td></tr>
+        </tbody>
+      </table>
+      <p>金属比较特殊：金属几乎没有普通意义上的漫反射，大部分能量都进入镜面反射，而且反射会带上金属自身的颜色。所以金、铜、铝看起来差异很大。</p>
+    </section>
+
+    <section>
+      <h2>5. PBR 背后的三个物理约束</h2>
+      <div class="grid">
+        <div class="panel card"><h3>能量守恒</h3><p>反射出去的光不能凭空超过照进来的光。材质越强烈反射，高光越亮，漫反射通常就越弱。</p></div>
+        <div class="panel card"><h3>微表面模型</h3><p>看似平滑的表面，其实由许多微小镜面组成。粗糙度越高，这些小镜子的朝向越乱，高光越散。</p></div>
+        <div class="panel card"><h3>菲涅耳效应</h3><p>越是贴着表面斜看，反射越明显。水面、玻璃、塑料边缘变亮，很多时候就是它在起作用。</p></div>
+        <div class="panel card"><h3>线性空间</h3><p>计算光照时通常要在线性空间处理，最后再转回屏幕显示。否则混色和亮度会不符合真实光的叠加方式。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>6. 一个简化版 PBR 公式</h2>
+      <p>真实引擎里的公式会更复杂，但可以先记住这个结构：</p>
+      <div class="formula">最终颜色 ≈ 漫反射 + 镜面反射 + 环境光反射</div>
+      <p>其中镜面反射又会被粗糙度、视角、法线、金属度共同影响。你在游戏里看到的“真实材质”，通常不是一张颜色图决定的，而是多张贴图一起工作。</p>
+    </section>
+
+    <section>
+      <h2>7. 在游戏和 WebGL 里怎么用？</h2>
+      <p>现代引擎通常提供两套常见工作流：</p>
+      <table class="table">
+        <thead><tr><th>工作流</th><th>常见贴图</th><th>适合理解方式</th></tr></thead>
+        <tbody>
+          <tr><td>Metallic / Roughness</td><td>BaseColor、Metallic、Roughness、Normal、AO</td><td>最常见。用“是不是金属”和“表面粗不粗”来描述材质。</td></tr>
+          <tr><td>Specular / Glossiness</td><td>Diffuse、Specular、Glossiness、Normal</td><td>更直接控制高光颜色和光滑度，但参数管理更容易混乱。</td></tr>
+        </tbody>
+      </table>
+      <p>Unity、Unreal、Blender、Three.js、Babylon.js 都支持 PBR 思路。不同软件名字可能略有不同，但核心问题都一样：材质如何反射光。</p>
+    </section>
+
+    <section>
+      <h2>8. 新手最容易混淆的点</h2>
+      <div class="panel card">
+        <p><strong>粗糙度不是亮度。</strong> 粗糙度改变的是高光集中还是分散，不是简单地把物体调亮或调暗。</p>
+        <p><strong>金属度不是“看起来高级”。</strong> 木头、皮肤、石头、塑料通常都应该接近 0。把所有东西调成半金属，会让画面发灰发脏。</p>
+        <p><strong>基础色不要自带强烈光影。</strong> PBR 贴图里的 Base Color 最好描述材质颜色本身，阴影和高光交给光照系统算。</p>
+        <p><strong>环境光很重要。</strong> 没有环境反射，再好的金属也会像黑球，因为它没有东西可反射。</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>9. 最后建立一个心智模型</h2>
+      <p>理解 PBR，可以把自己想成一个材质侦探。看到一个物体时，不要先问“它该多亮”，而是问：</p>
+      <div class="grid">
+        <div class="panel card"><h3>它是什么颜色？</h3><p>这对应 Base Color。</p></div>
+        <div class="panel card"><h3>它是不是金属？</h3><p>这对应 Metallic。</p></div>
+        <div class="panel card"><h3>它表面光滑吗？</h3><p>这对应 Roughness。</p></div>
+        <div class="panel card"><h3>它表面有细节吗？</h3><p>这对应 Normal、AO 等贴图。</p></div>
+      </div>
+      <p>当这几个答案比较真实，再给它合理的光照和环境反射，PBR 的真实感就自然出来了。</p>
+    </section>
+
+    <p class="footer">生成时间：2026-09-09。主题：PBR 基于物理的渲染入门。</p>
+  </main>
+
+  <script>
+    const sphere = document.getElementById('sphere');
+    const baseColor = document.getElementById('baseColor');
+    const metallic = document.getElementById('metallic');
+    const roughness = document.getElementById('roughness');
+    const viewAngle = document.getElementById('viewAngle');
+    const metallicVal = document.getElementById('metallicVal');
+    const roughnessVal = document.getElementById('roughnessVal');
+    const angleVal = document.getElementById('angleVal');
+
+    function updateMaterial() {
+      const m = Number(metallic.value) / 100;
+      const r = Number(roughness.value) / 100;
+      const a = Number(viewAngle.value) / 100;
+      metallicVal.textContent = metallic.value + '%';
+      roughnessVal.textContent = roughness.value + '%';
+      angleVal.textContent = viewAngle.value + '%';
+      sphere.style.setProperty('--base', baseColor.value);
+      sphere.style.setProperty('--shine', String(.95 - r * .55 + a * .18));
+      sphere.style.setProperty('--inner', String(.22 + m * .18));
+      sphere.style.setProperty('--sat', String(1 + m * .45));
+      sphere.style.setProperty('--hx', (26 + a * 20) + '%');
+      sphere.style.setProperty('--hy', (20 + r * 16) + '%');
+      sphere.style.boxShadow = `inset ${-28 - m * 22}px ${-36 - m * 18}px ${42 + r * 70}px rgba(0,0,0,${.24 + m * .22}), inset 24px 16px ${26 + r * 50}px rgba(255,255,255,${.18 + (1-r) * .2}), 0 32px 54px rgba(31,41,55,.24)`;
+    }
+
+    [baseColor, metallic, roughness, viewAngle].forEach(input => input.addEventListener('input', updateMaterial));
+    updateMaterial();
+  </script>
+</body>
+</html>
